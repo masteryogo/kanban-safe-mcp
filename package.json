@@ -1,0 +1,29 @@
+{
+  "name": "kanban-safe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Servidor MCP de uso interno da MedSafe Brasil para o board Planka 1.x",
+  "type": "module",
+  "bin": {
+    "kanban-safe": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "test": "vitest run test/unit",
+    "test:contract": "vitest run test/contract",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^5.0.0"
+  }
+}
