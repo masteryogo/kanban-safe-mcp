@@ -64,7 +64,9 @@ O pacote é privado e **não está em registry nenhum**: `npm install kanban-saf
 e não vai existir. Para instalar em outra máquina, leve o diretório do projeto — sem
 `node_modules/` nem `dist/`, que são regenerados — e rode, dentro dele:
 
-```powershell
+```bash
+git clone https://github.com/masteryogo/kanban-safe-mcp.git
+cd kanban-safe-mcp
 npm install       # baixa as dependencias para ./node_modules
 npm run build     # compila src/ em dist/index.js, que e o que o Claude Code executa
 npm test          # 65 testes unitarios, com fetch dublado; nenhuma chamada de rede
