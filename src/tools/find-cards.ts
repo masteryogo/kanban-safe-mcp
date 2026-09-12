@@ -13,6 +13,10 @@ export const findCards = defineTool({
   schema: {
     query: z.string().min(1).describe('Codigo, prefixo do nome ou texto.'),
     boardId: boardIdField,
+    member: z
+      .string()
+      .optional()
+      .describe('Restringe aos cards atribuidos a esta pessoa (id, e-mail, username ou nome).'),
     limit: z.number().int().min(1).max(100).default(20),
     includeDescription: z.boolean().default(false),
     searchDescription: z
@@ -23,8 +27,14 @@ export const findCards = defineTool({
   async handler(args, ctx) {
     const index = await ctx.index(args.boardId);
     const q = args.query.trim().toLowerCase();
+    const wantedMember = args.member ? await ctx.resolveUser(args.member, args.boardId) : undefined;
 
-    const scored = index.board.cards
+    // Filtra por id, nao por nome: duas pessoas podem exibir o mesmo nome.
+    const universe = wantedMember
+      ? index.board.cards.filter((c) => index.memberIdsOf(c.id).includes(wantedMember.id))
+      : index.board.cards;
+
+    const scored = universe
       .map((card) => {
         const name = (card.name ?? '').toLowerCase();
         const code = extractCode(card.name)?.toLowerCase();
@@ -46,6 +56,9 @@ export const findCards = defineTool({
 
     return renderJson({
       query: args.query,
+      membro: wantedMember
+        ? (wantedMember.name ?? wantedMember.username ?? wantedMember.id)
+        : undefined,
       encontrados: scored.length,
       cards: scored
         .slice(0, args.limit)

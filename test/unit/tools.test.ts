@@ -319,3 +319,106 @@ describe('leitura compacta (invariante 5)', () => {
     expect(output).toContain('E08-IA-006');
   });
 });
+
+describe('membros do card', () => {
+  it('get_board mostra members em quem tem e omite em quem nao tem', async () => {
+    const { ctx } = setup(readOnlyServer);
+    const output = await run('kanban_get_board', {}, ctx);
+    // CARDS[1] tem a Melchisedek Lima; CARDS[0] (E08-IA-006) nao tem membro.
+    expect(output).toContain('Melchisedek Lima');
+    const linhaSemMembro = output
+      .split('\n')
+      .find((line) => line.includes('E08-IA-006') && line.includes('"id"'));
+    expect(linhaSemMembro).toBeDefined();
+    expect(linhaSemMembro).not.toContain('members');
+  });
+
+  it('get_board filtra por member por username, e-mail e nome completo', async () => {
+    const { ctx } = setup(readOnlyServer);
+    for (const ref of ['melchisedek', 'melk@exemplo.com', 'Melchisedek Lima']) {
+      const output = await run('kanban_get_board', { member: ref }, ctx);
+      expect(output, `referencia ${ref}`).toContain('E03-APP-005');
+      expect(output, `referencia ${ref}`).not.toContain('E08-IA-006');
+      expect(output, `referencia ${ref}`).toContain('"totalFiltrado": 1');
+    }
+  });
+
+  it('referencia ambigua de pessoa falha sem escolher sozinha', async () => {
+    const { ctx } = setup(readOnlyServer);
+    // "Mel" e prefixo de dois usernames do board: melchisedek e melsouza.
+    await expect(run('kanban_get_board', { member: 'Mel' }, ctx)).rejects.toThrow(
+      /Melchisedek Souza|ambig/i,
+    );
+  });
+
+  it('username exato ganha de prefixo que casaria com mais de uma pessoa', async () => {
+    const { ctx } = setup(readOnlyServer);
+    // "melchisedek" e prefixo do nome da Souza, mas e o username EXATO da Lima:
+    // o tier de igualdade resolve antes de chegar no de prefixo.
+    const output = await run('kanban_get_board', { member: 'melchisedek' }, ctx);
+    expect(output).toMatch(/"member":\s*"Melchisedek Lima"/);
+    expect(output).not.toContain('Melchisedek Souza');
+  });
+
+  it('pessoa inexistente falha nomeando quem existe no board', async () => {
+    const { ctx } = setup(readOnlyServer);
+    await expect(run('kanban_get_board', { member: 'ninguem' }, ctx)).rejects.toThrow(
+      /melchisedek/i,
+    );
+  });
+
+  it('vinculo orfo vira o proprio userId, sem derrubar a leitura', async () => {
+    const { ctx } = setup(readOnlyServer);
+    const output = await run('kanban_get_board', { member: 'melchisedek' }, ctx);
+    // CARDS[1] tem tambem o vinculo orfo userId 999, sem usuario correspondente.
+    expect(output).toContain('999');
+  });
+
+  it('find_cards restringe a busca aos cards da pessoa', async () => {
+    const { ctx } = setup(readOnlyServer);
+    const semFiltro = await run('kanban_find_cards', { query: 'Tela' }, ctx);
+    expect(semFiltro).toContain('E03-APP-005');
+    expect(semFiltro).toContain('E03-APP-006');
+
+    const comFiltro = await run('kanban_find_cards', { query: 'Tela', member: 'melchisedek' }, ctx);
+    expect(comFiltro).toContain('E03-APP-005');
+    expect(comFiltro).not.toContain('E03-APP-006');
+  });
+
+  it('get_card lista os membros vindos do proprio card', async () => {
+    const { ctx } = setup(readOnlyServer);
+    const output = await run('kanban_get_card', { card: 'E03-APP-005' }, ctx);
+    expect(output).toContain('membros');
+    expect(output).toContain('Melchisedek Lima');
+  });
+
+  it('usuario com username null no board nao derruba a resolucao', async () => {
+    const { ctx } = setup(readOnlyServer);
+    // Regressao: `username: null` passava pela guarda `!== undefined` e
+    // estourava TypeError ao chamar .trim() na varredura de candidatos.
+    const output = await run('kanban_get_board', { member: 'melchisedek' }, ctx);
+    expect(output).toContain('E03-APP-005');
+  });
+
+  it('pessoa com username null ainda resolve pelo nome', async () => {
+    const { ctx } = setup(readOnlyServer);
+    await expect(run('kanban_get_board', { member: 'Robo Integrador' }, ctx)).resolves.toContain(
+      '"totalFiltrado": 0',
+    );
+  });
+
+  it('board sem cardMemberships no payload nao quebra', async () => {
+    const { ctx } = setup((call) => {
+      const path = pathOf(call);
+      if (call.method === 'GET' && path === `/api/boards/${BOARD_ID}`) {
+        const payload = boardPayload() as unknown as { included: Record<string, unknown> };
+        delete payload.included.cardMemberships;
+        return { body: json(payload) };
+      }
+      throw new Error(`chamada inesperada: ${call.method} ${path}`);
+    });
+    const output = await run('kanban_get_board', {}, ctx);
+    expect(output).toContain('E08-IA-006');
+    expect(output).not.toContain('members');
+  });
+});

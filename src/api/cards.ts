@@ -6,6 +6,7 @@ import {
   type Attachment,
   type Card,
   type CardLabel,
+  type CardMembership,
   type Task,
 } from '../types.js';
 
@@ -13,6 +14,7 @@ export interface CardPayload {
   item: Card;
   tasks: Task[];
   cardLabels: CardLabel[];
+  cardMemberships: CardMembership[];
   attachments: Attachment[];
 }
 
@@ -23,6 +25,7 @@ export async function getCard(client: KanbanClient, cardId: string): Promise<Car
     item: requireItem<Card>(payload, 'card'),
     tasks: includedArray<Task>(payload, 'tasks'),
     cardLabels: includedArray<CardLabel>(payload, 'cardLabels'),
+    cardMemberships: includedArray<CardMembership>(payload, 'cardMemberships'),
     attachments: includedArray<Attachment>(payload, 'attachments'),
   };
 }

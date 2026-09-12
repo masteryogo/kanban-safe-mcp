@@ -135,10 +135,31 @@ claude mcp list            # confere que subiu e responde
 | Ferramenta | Para quê |
 |---|---|
 | `kanban_whoami` | diagnóstico: usuário, board, versão da API detectada |
-| `kanban_get_board` | listas com contagem + página de cards compactos, com filtro |
-| `kanban_find_cards` | procura por código, prefixo ou texto, sobre o cache |
-| `kanban_get_card` | um card com descrição, checklist (com ids) e labels |
+| `kanban_get_board` | listas com contagem + página de cards compactos; filtra por `list`, `label` e `member` |
+| `kanban_find_cards` | procura por código, prefixo ou texto, sobre o cache; `member` restringe o universo |
+| `kanban_get_card` | um card com descrição, checklist (com ids), labels e membros |
 | `kanban_get_comments` | comentários, que vêm de `/actions`, não do card |
+
+### Membro do card
+
+`included.cardMemberships` é quem a interface mostra como avatar no card — e é
+coisa distinta de `boardMemberships` (quem participa do board) e do autor de um
+comentário. Vem no payload do board **e** no do card, no mesmo formato de
+`cardLabels`.
+
+A leitura expõe isso em `members` (saída compacta) e `membros` (`get_card`), e
+`get_board`/`find_cards` aceitam `member` para filtrar. A referência resolve por
+id, e-mail, username ou nome, com a mesma regra do resto: ambiguidade **falha
+listando os candidatos**, sem escolher (invariante 7). O e-mail é testado antes
+dos demais por ser único, para não competir por prefixo com o nome de outra
+pessoa; o filtro compara por id, porque duas pessoas podem exibir o mesmo nome.
+
+Vínculo órfão — a pessoa saiu do board e a associação ficou — aparece como o
+próprio `userId` em vez de derrubar a chamada (invariante 3).
+
+Não há ferramenta de **escrita** de membro: atribuir e desatribuir exigem
+`dry_run` e write-then-verify (invariantes 8 e 9), e ficaram de fora desta
+mudança.
 
 **Escrita de card** — todas com `dry_run`
 
