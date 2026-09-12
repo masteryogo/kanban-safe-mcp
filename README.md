@@ -140,6 +140,21 @@ claude mcp list            # confere que subiu e responde
 | `kanban_get_card` | um card com descrição, checklist (com ids), labels e membros |
 | `kanban_get_comments` | comentários, que vêm de `/actions`, não do card |
 
+### Editar comentário
+
+`PATCH /api/comment-actions/:id` **funciona** — medido em 12/09/2026 contra o servidor
+real: 200 com `application/json` e `updatedAt` novo. A afirmação anterior de que este
+servidor era *append-only* em comentário era suposição, não medição; o Planka 1.x edita
+comentário próprio pela própria interface.
+
+Só o **autor** edita o que é seu. **Remoção** o servidor não expõe — essa parte
+continua sendo append-only.
+
+O texto antigo **não fica guardado em lugar nenhum**: por isso o `dry_run` de
+`kanban_update_comment` mostra o texto que está lá hoje antes de sobrescrever, e aceita
+o argumento `card` justamente para conseguir lê-lo (não há `GET /api/comment-actions/:id`
+neste servidor).
+
 ### Membro do card
 
 `included.cardMemberships` é quem a interface mostra como avatar no card — e é
@@ -169,6 +184,7 @@ mudança.
 | `kanban_update_card` | `PATCH /api/cards/:id` |
 | `kanban_move_card` | `PATCH /api/cards/:id` (troca `listId` + `position`) |
 | `kanban_add_comment` | `POST /api/cards/:id/comment-actions` |
+| `kanban_update_comment` | `PATCH /api/comment-actions/:id` — corrige o texto de um comentário já publicado |
 | `kanban_set_labels` | `POST`/`DELETE /api/cards/:id/labels` |
 
 **Checklist** — todas com `dry_run`
