@@ -3,9 +3,16 @@ import { KanbanClient } from './client.js';
 import type { Config } from './config.js';
 import { ConfigError, ReadOnlyError, UnresolvedReferenceError } from './errors.js';
 import { BoardIndex, renderJson } from './format.js';
-import { looksLikeId, resolveCard, resolveLabel, resolveList, resolveTaskIn } from './resolve.js';
+import {
+  looksLikeId,
+  resolveCard,
+  resolveLabel,
+  resolveList,
+  resolveTaskIn,
+  resolveUser,
+} from './resolve.js';
 import { getCard } from './api/cards.js';
-import type { BoardPayload, Card, Label, List, Task } from './types.js';
+import type { BoardPayload, Card, Label, List, Task, User } from './types.js';
 
 /**
  * Estado compartilhado pelas ferramentas: cliente HTTP, cache de board e as
@@ -63,6 +70,11 @@ export class Context {
 
   async resolveLabel(ref: string, boardId?: string): Promise<Label> {
     return resolveLabel(await this.board(boardId), ref);
+  }
+
+  /** Pessoa do board por id, e-mail, username ou nome. */
+  async resolveUser(ref: string, boardId?: string): Promise<User> {
+    return resolveUser(await this.board(boardId), ref);
   }
 
   /**

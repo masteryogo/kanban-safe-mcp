@@ -55,6 +55,20 @@ export interface CardLabel extends Unknown {
   labelId?: string;
 }
 
+/**
+ * Associacao pessoa-card — o "membro" do card, que a interface mostra como avatar.
+ * Vem em `included.cardMemberships`, no mesmo formato de `cardLabels`, tanto no
+ * payload do board quanto no do card.
+ *
+ * Nao confundir com `boardMemberships` (quem participa do board) nem com o autor
+ * de um comentario: sao tres coisas distintas no Planka.
+ */
+export interface CardMembership extends Unknown {
+  id: string;
+  cardId?: string;
+  userId?: string;
+}
+
 export interface Action extends Unknown {
   id: string;
   /** comentario e `commentCard`, com o texto em `data.text`. */
@@ -98,6 +112,7 @@ export interface BoardPayload {
   cards: Card[];
   labels: Label[];
   cardLabels: CardLabel[];
+  cardMemberships: CardMembership[];
   tasks: Task[];
   attachments: Attachment[];
   users: User[];

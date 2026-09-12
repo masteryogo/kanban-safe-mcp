@@ -1,6 +1,6 @@
 {
   "name": "kanban-safe",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Servidor MCP de uso interno da MedSafe Brasil para o board Planka 1.x",
   "type": "module",

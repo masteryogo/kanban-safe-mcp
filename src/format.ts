@@ -37,6 +37,7 @@ export interface CompactCard {
   name: string;
   list?: string;
   labels?: string[];
+  members?: string[];
   tasks?: string;
   dueDate?: string;
   description?: string;
@@ -46,18 +47,35 @@ export interface CompactCard {
 export class BoardIndex {
   readonly listsById = new Map<string, string>();
   readonly labelsById = new Map<string, Label>();
+  readonly usersById = new Map<string, User>();
   private readonly labelsByCard = new Map<string, string[]>();
+  private readonly membersByCard = new Map<string, string[]>();
+  private readonly memberIdsByCard = new Map<string, string[]>();
   private readonly tasksByCard = new Map<string, Task[]>();
 
   constructor(readonly board: BoardPayload) {
     for (const list of board.lists) this.listsById.set(list.id, list.name ?? '');
     for (const label of board.labels) this.labelsById.set(label.id, label);
+    for (const user of board.users) this.usersById.set(user.id, user);
     for (const link of board.cardLabels) {
       if (!link.cardId || !link.labelId) continue;
       const label = this.labelsById.get(link.labelId);
       const bucket = this.labelsByCard.get(link.cardId) ?? [];
       bucket.push(label?.name ?? link.labelId);
       this.labelsByCard.set(link.cardId, bucket);
+    }
+    // Leitura defensiva (invariante 3): usuario removido do board deixa a
+    // associacao para tras, entao `usersById` pode nao ter o id — cai no proprio
+    // id em vez de derrubar a chamada.
+    for (const link of board.cardMemberships ?? []) {
+      if (!link.cardId || !link.userId) continue;
+      const user = this.usersById.get(link.userId);
+      const names = this.membersByCard.get(link.cardId) ?? [];
+      names.push(user?.name ?? user?.username ?? link.userId);
+      this.membersByCard.set(link.cardId, names);
+      const ids = this.memberIdsByCard.get(link.cardId) ?? [];
+      ids.push(link.userId);
+      this.memberIdsByCard.set(link.cardId, ids);
     }
     for (const task of board.tasks) {
       if (!task.cardId) continue;
@@ -69,6 +87,16 @@ export class BoardIndex {
 
   labelsOf(cardId: string): string[] {
     return this.labelsByCard.get(cardId) ?? [];
+  }
+
+  /** Nomes dos membros do card, para exibicao. */
+  membersOf(cardId: string): string[] {
+    return this.membersByCard.get(cardId) ?? [];
+  }
+
+  /** Ids dos membros do card, para filtrar sem depender do nome. */
+  memberIdsOf(cardId: string): string[] {
+    return this.memberIdsByCard.get(cardId) ?? [];
   }
 
   tasksOf(cardId: string): Task[] {
@@ -88,6 +116,7 @@ export function compactCard(
   const tasks = index.tasksOf(card.id);
   const done = tasks.filter((t) => t.isCompleted).length;
   const labels = index.labelsOf(card.id);
+  const members = index.membersOf(card.id);
   const out: CompactCard = {
     id: card.id,
     name: card.name ?? '',
@@ -97,6 +126,7 @@ export function compactCard(
   const listName = index.listNameOf(card.listId);
   if (listName) out.list = listName;
   if (labels.length) out.labels = labels;
+  if (members.length) out.members = members;
   if (tasks.length) out.tasks = `${done}/${tasks.length}`;
   if (card.dueDate) out.dueDate = String(card.dueDate);
   if (options.includeDescription && card.description) out.description = String(card.description);

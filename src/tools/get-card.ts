@@ -19,8 +19,20 @@ export const getCardTool = defineTool({
   },
   async handler(args, ctx) {
     const resolved = await ctx.resolveCard(args.card, args.boardId);
-    const { item, tasks } = await getCard(ctx.client, resolved.id);
+    const { item, tasks, cardMemberships } = await getCard(ctx.client, resolved.id);
     const index = await ctx.index(args.boardId);
+
+    // Preferir as associacoes que vieram no proprio card: `ctx.resolveCard` aceita
+    // id de card fora do board padrao, e nesse caso o indice do board nao o conhece.
+    // Leitura defensiva (invariante 3): userId sem usuario correspondente vira o id.
+    const membros = cardMemberships.length
+      ? cardMemberships
+          .filter((m) => m.userId)
+          .map((m) => {
+            const user = index.usersById.get(m.userId!);
+            return user?.name ?? user?.username ?? m.userId!;
+          })
+      : index.membersOf(item.id);
 
     const ordered = [...tasks].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     const out: Record<string, unknown> = {
@@ -29,6 +41,7 @@ export const getCardTool = defineTool({
       list: index.listNameOf(item.listId),
       listId: item.listId,
       labels: index.labelsOf(item.id),
+      membros,
       dueDate: item.dueDate ?? undefined,
       isDueDateCompleted: item.isDueDateCompleted ?? undefined,
       description: item.description ?? '',

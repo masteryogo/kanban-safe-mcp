@@ -8,12 +8,16 @@ export const getBoardTool = defineTool({
   description:
     'Panorama do board: listas com contagem de cards, e uma pagina de cards em formato ' +
     'compacto. O servidor ignora filtro em query string, entao todo recorte e feito aqui. ' +
-    'Use `list`/`label` para filtrar e `limit`/`offset` para paginar; `includeDescription` ' +
-    'so quando precisar mesmo do texto, porque infla a saida.',
+    'Use `list`/`label`/`member` para filtrar e `limit`/`offset` para paginar; ' +
+    '`includeDescription` so quando precisar mesmo do texto, porque infla a saida.',
   schema: {
     boardId: boardIdField,
     list: z.string().optional().describe('Filtra por lista (id ou nome).'),
     label: z.string().optional().describe('Filtra por label (id ou nome).'),
+    member: z
+      .string()
+      .optional()
+      .describe('Filtra por pessoa atribuida ao card (id, e-mail, username ou nome).'),
     limit: z.number().int().min(1).max(200).default(50).describe('Cards por pagina.'),
     offset: z.number().int().min(0).default(0),
     includeDescription: z.boolean().default(false),
@@ -25,12 +29,17 @@ export const getBoardTool = defineTool({
 
     const wantedList = args.list ? await ctx.resolveList(args.list, args.boardId) : undefined;
     const wantedLabel = args.label ? await ctx.resolveLabel(args.label, args.boardId) : undefined;
+    const wantedMember = args.member ? await ctx.resolveUser(args.member, args.boardId) : undefined;
 
     let cards = board.cards;
     if (wantedList) cards = cards.filter((c) => c.listId === wantedList.id);
     if (wantedLabel) {
       const nome = wantedLabel.name ?? wantedLabel.id;
       cards = cards.filter((c) => index.labelsOf(c.id).includes(nome));
+    }
+    // Filtra por id, nao por nome: duas pessoas podem exibir o mesmo nome.
+    if (wantedMember) {
+      cards = cards.filter((c) => index.memberIdsOf(c.id).includes(wantedMember.id));
     }
     cards = [...cards].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
@@ -49,6 +58,9 @@ export const getBoardTool = defineTool({
       filtro: {
         list: wantedList?.name,
         label: wantedLabel?.name,
+        member: wantedMember
+          ? (wantedMember.name ?? wantedMember.username ?? wantedMember.id)
+          : undefined,
       },
       totalFiltrado: cards.length,
       mostrando: `${page.length ? args.offset + 1 : 0}-${args.offset + page.length} de ${cards.length}`,
