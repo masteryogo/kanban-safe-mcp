@@ -15,6 +15,8 @@ import { createCard, deleteCard, getCard, updateCard } from '../../src/api/cards
 import { addComment, listActions } from '../../src/api/comments.js';
 import { createTask, deleteTask, updateTask } from '../../src/api/tasks.js';
 import { addCardLabel, removeCardLabel } from '../../src/api/labels.js';
+import { addCardMember, removeCardMember } from '../../src/api/members.js';
+import { getMe } from '../../src/api/boards.js';
 import { RouteNotFoundError } from '../../src/errors.js';
 import { endPosition } from '../../src/position.js';
 
@@ -133,6 +135,17 @@ writeSuite('contrato: ciclo de escrita num card descartavel', () => {
       const semLabel = await getCard(ctx.client, card.id);
       expect(semLabel.cardLabels.some((l) => l.labelId === label.id)).toBe(false);
     }
+
+    // pessoa: atribuir e desatribuir. Esta e a medicao que o mapa de rotas precisa —
+    // o DELETE aqui NAO leva o alvo no caminho, ao contrario do de label, entao e o
+    // unico jeito de confirmar que a query string e mesmo de onde o servidor le.
+    const eu = await getMe(ctx.client);
+    await addCardMember(ctx.client, card.id, eu.id);
+    const comPessoa = await getCard(ctx.client, card.id);
+    expect(comPessoa.cardMemberships.some((m) => m.userId === eu.id)).toBe(true);
+    await removeCardMember(ctx.client, card.id, eu.id);
+    const semPessoa = await getCard(ctx.client, card.id);
+    expect(semPessoa.cardMemberships.some((m) => m.userId === eu.id)).toBe(false);
 
     // DELETE /api/tasks/:id
     await deleteTask(ctx.client, task.id);

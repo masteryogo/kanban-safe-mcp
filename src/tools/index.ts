@@ -10,12 +10,13 @@ import { moveCardTool } from './move-card.js';
 import { addCommentTool } from './add-comment.js';
 import { updateCommentTool } from './update-comment.js';
 import { setLabels } from './set-labels.js';
+import { setMembers } from './set-members.js';
 import { addTasks } from './add-tasks.js';
 import { updateTaskTool } from './update-task.js';
 import { replaceTasks } from './replace-tasks.js';
 import { deleteTaskTool } from './delete-task.js';
 
-/** As 15 ferramentas. Cada uma ocupa contexto em toda sessao — a lista e enxuta de proposito. */
+/** As 16 ferramentas. Cada uma ocupa contexto em toda sessao — a lista e enxuta de proposito. */
 export const TOOLS: ToolDef[] = [
   whoami,
   getBoardTool,
@@ -28,6 +29,7 @@ export const TOOLS: ToolDef[] = [
   addCommentTool,
   updateCommentTool,
   setLabels,
+  setMembers,
   addTasks,
   updateTaskTool,
   replaceTasks,
