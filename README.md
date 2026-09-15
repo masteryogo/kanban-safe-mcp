@@ -7,7 +7,10 @@ escrito para a API 2.0 e falha aqui de formas que o cliente não percebe: rota d
 não existe, e validação da resposta com schema fechado que derruba chamadas que o
 servidor atendeu com 200.
 
-Todo fato de API registrado abaixo foi medido contra o servidor real em 2026-09-09.
+O mapa de API abaixo foi medido contra o servidor real em 2026-09-09, com duas adições
+posteriores: `PATCH /api/comment-actions/:id`, medido em 2026-09-12, e o `DELETE` de
+membership, que é **lido da fonte da 1.x e ainda não medido** — está marcado como tal na
+própria tabela. Onde não houver ressalva, o fato foi medido.
 [`probe/route-map.mjs`](probe/route-map.mjs) reproduz a medição a qualquer momento — é a
 forma de reconferir isto tudo se o servidor mudar.
 
@@ -172,9 +175,11 @@ pessoa; o filtro compara por id, porque duas pessoas podem exibir o mesmo nome.
 Vínculo órfão — a pessoa saiu do board e a associação ficou — aparece como o
 próprio `userId` em vez de derrubar a chamada (invariante 3).
 
-Não há ferramenta de **escrita** de membro: atribuir e desatribuir exigem
-`dry_run` e write-then-verify (invariantes 8 e 9), e ficaram de fora desta
-mudança.
+A **escrita** é `kanban_set_members`, com `dry_run` e write-then-verify como todo o
+resto (invariantes 8 e 9). Ela atribui e desatribui quem **já é membro do board**;
+colocar pessoa no board é outra operação e continua fora do escopo. O `DELETE` não
+segue o formato do label: o alvo vai na query string, não no caminho — veja o mapa
+da API abaixo.
 
 **Escrita de card** — todas com `dry_run`
 
@@ -227,7 +232,7 @@ do dia a dia e cada ferramenta cobra contexto em toda sessão.
 | PATCH | `/api/cards/:id` | — | `name`, `description`, `listId`, `position`, `dueDate`, `isDueDateCompleted` |
 | POST | `/api/cards/:id/tasks` | `name`, `position` | `position` é obrigatório aqui |
 | PATCH | `/api/tasks/:id` | — | `name`, `isCompleted` |
-| POST | `/api/cards/:id/comment-actions` | `text` | comentário, append-only |
+| POST | `/api/cards/:id/comment-actions` | `text` | comentário; corrigir dá (PATCH abaixo), apagar não |
 | POST | `/api/cards/:id/labels` | `labelId` | vincula label existente ao card |
 | POST | `/api/cards/:id/memberships` | `userId` | atribui pessoa |
 | POST | `/api/cards/:id/duplicate` | `position` | duplica card |
@@ -236,13 +241,19 @@ do dia a dia e cada ferramenta cobra contexto em toda sessão.
 | POST | `/api/projects/:id/boards` | `name`, `position` | cria board |
 | PATCH | `/api/lists/:id` | — | `name`, `position` |
 | PATCH | `/api/labels/:id` | — | `name`, `color`, `position` |
+| PATCH | `/api/comment-actions/:id` | `text` | **existe** — medido em 2026-09-12: 200, `application/json`, `updatedAt` novo. Só o autor edita o que é seu; não há `GET` correspondente |
 | DELETE | `/api/cards/:id`, `/api/tasks/:id`, `/api/cards/:id/labels/:labelId` | — | exercitadas pelo teste de contrato de escrita |
+| DELETE | `/api/cards/:cardId/memberships` | `userId` na **query string** | o alvo **não** vai no caminho, ao contrário do label. Rota lida da fonte da 1.x e coberta por teste unitário — **ainda não medida** contra o servidor real |
 
 **Rotas que não existem neste servidor** — todas são da 2.0 e devolvem 404:
 `POST /api/cards/:id/comments` · `POST /api/cards/:id/card-labels` ·
 `POST /api/cards/:id/task-lists` · `POST /api/task-lists/:id/tasks` ·
-`PATCH /api/comment-actions/:id` · `PATCH /api/actions/:id`.
-As duas últimas são o motivo de comentário ser tratado como **append-only**.
+`PATCH /api/actions/:id`.
+
+`PATCH /api/comment-actions/:id` **saiu desta lista**: estava aqui como suposição, e a
+medição de 2026-09-12 mostrou que funciona. Era ela que sustentava a afirmação de que
+comentário neste servidor seria append-only. O que o servidor de fato não expõe é a
+**remoção** de comentário — essa parte segue append-only.
 
 **Formatos.** Ids são strings numéricas de 19 dígitos (snowflake) — nunca tratar como
 number, estouram o inteiro seguro do JavaScript. O card **não** tem `type` e a task **não**
@@ -265,13 +276,19 @@ npm test                       # unitários, sem rede
 $env:KANBAN_SAFE_E2E="1"; npm run test:contract
 
 # ciclo de escrita: exige uma lista descartável combinada com o dono do board.
-# Cria um card, exercita PATCH/comentário/task/label/DELETE e apaga o card no fim.
+# Cria um card, exercita PATCH/comentário/task/label/membership/DELETE e apaga o card no fim.
 $env:KANBAN_SAFE_E2E_WRITE_LIST="Done"; npm run test:contract
 ```
 
 O ciclo de escrita é o único jeito de exercitar as rotas de `DELETE`, e por isso exige o
 segundo consentimento explícito. Rodou em 2026-09-09 na lista `Done`: as três rotas de
-`DELETE` existem e funcionam, e o board voltou ao estado anterior.
+`DELETE` de então — card, task e label — existem e funcionam, e o board voltou ao estado
+anterior.
+
+O ciclo de **membership** foi escrito depois e **ainda não rodou**: o arquivo de contrato
+não parseava por uma importação repetida, corrigida em 22c15a0. Até alguém rodar isto com
+`KANBAN_SAFE_E2E_WRITE_LIST`, o `userId` na query string do `DELETE` é rota lida da fonte
+da 1.x, não medida neste servidor.
 
 ## Estrutura
 
