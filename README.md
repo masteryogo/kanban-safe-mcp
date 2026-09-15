@@ -186,6 +186,7 @@ mudança.
 | `kanban_add_comment` | `POST /api/cards/:id/comment-actions` |
 | `kanban_update_comment` | `PATCH /api/comment-actions/:id` — corrige o texto de um comentário já publicado |
 | `kanban_set_labels` | `POST`/`DELETE /api/cards/:id/labels` |
+| `kanban_set_members` | `POST /api/cards/:id/memberships` · `DELETE /api/cards/:id/memberships?userId=` — o alvo do DELETE **não** vai no caminho, ao contrário do label |
 
 **Checklist** — todas com `dry_run`
 
@@ -196,7 +197,9 @@ mudança.
 | `kanban_replace_tasks` | cria → confere → apaga |
 | `kanban_delete_task` | `DELETE /api/tasks/:id` |
 
-Fora do escopo por ora: anexos, criação de board/lista/label, gestão de membros. As rotas
+Fora do escopo por ora: anexos, criação de board/lista/label, e **entrada de pessoa no
+board** — `kanban_set_members` atribui a um card quem já é membro do board, e referência
+que não resolve falha listando os candidatos em vez de escolher. As rotas
 estão no mapa abaixo se precisarem entrar depois; ficam de fora porque não aparecem no uso
 do dia a dia e cada ferramenta cobra contexto em toda sessão.
 

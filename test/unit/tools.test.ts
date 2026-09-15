@@ -50,10 +50,10 @@ async function run(name: string, args: Record<string, unknown>, ctx: Context): P
 }
 
 describe('registro das ferramentas', () => {
-  it('sao 15, todas com prefixo kanban_ e nome unico', () => {
-    expect(TOOLS).toHaveLength(15);
+  it('sao 16, todas com prefixo kanban_ e nome unico', () => {
+    expect(TOOLS).toHaveLength(16);
     expect(TOOLS.every((t) => t.name.startsWith('kanban_'))).toBe(true);
-    expect(new Set(TOOLS.map((t) => t.name)).size).toBe(15);
+    expect(new Set(TOOLS.map((t) => t.name)).size).toBe(16);
   });
 
   it('toda ferramenta de escrita tem dry_run com padrao true', () => {
@@ -85,6 +85,7 @@ describe('dry_run (invariante 8)', () => {
     ['kanban_add_comment', { card: 'E08-IA-006', text: 'oi' }],
     ['kanban_update_comment', { commentId: '1860000000000000001', text: 'corrigido' }],
     ['kanban_set_labels', { card: 'E03-APP-005', add: ['ia'] }],
+    ['kanban_set_members', { card: 'E03-APP-005', add: ['melsouza'] }],
     ['kanban_add_tasks', { card: 'E08-IA-006', tasks: ['nova task'] }],
     ['kanban_update_task', { taskId: TASKS[0]!.id, isCompleted: false }],
     ['kanban_delete_task', { taskId: TASKS[0]!.id }],
@@ -525,5 +526,87 @@ describe('membros do card', () => {
     const output = await run('kanban_get_board', {}, ctx);
     expect(output).toContain('E08-IA-006');
     expect(output).not.toContain('members');
+  });
+});
+
+describe('kanban_set_members', () => {
+  /** Servidor que le o board e aceita o vinculo, devolvendo `{ item }`. */
+  function servidorComMembership(call: Call): Reply {
+    const path = pathOf(call);
+    if (call.method === 'GET' && path === `/api/boards/${BOARD_ID}`) {
+      return { body: json(boardPayload()) };
+    }
+    if (call.method === 'GET' && /^\/api\/cards\/\d+$/.test(path)) {
+      return { body: json(cardPayload(path.split('/').pop()!)) };
+    }
+    if (/^\/api\/cards\/\d+\/memberships$/.test(path)) {
+      return { body: json({ item: { id: '1855000000000000009', cardId: CARDS[0]!.id } }) };
+    }
+    throw new Error(`chamada inesperada: ${call.method} ${path}`);
+  }
+
+  it('mostra a rota e o corpo com userId, e nao o nome', async () => {
+    const { ctx } = setup(readOnlyServer);
+    const output = await run('kanban_set_members', { card: 'E08-IA-006', add: ['melsouza'] }, ctx);
+    expect(output).toContain(`POST /api/cards/${CARDS[0]!.id}/memberships`);
+    expect(output).toContain(`"userId":"${USERS[2]!.id}"`);
+  });
+
+  it('o DELETE leva o userId na query, e nao no caminho como o label', async () => {
+    const { ctx } = setup(readOnlyServer);
+    const output = await run(
+      'kanban_set_members',
+      { card: 'E03-APP-005', remove: ['melchisedek'] },
+      ctx,
+    );
+    expect(output).toContain(
+      `DELETE /api/cards/${CARDS[1]!.id}/memberships?userId=${USERS[1]!.id}`,
+    );
+  });
+
+  it('referencia ambigua falha listando os candidatos, sem escolher', async () => {
+    const { ctx, fake } = setup(readOnlyServer);
+    // USERS[1] e USERS[2] compartilham o primeiro nome. Note que 'Melchisedek'
+    // NAO serve para este teste: e o `username` exato do USERS[1], e o resolvedor
+    // casa username antes de cair na busca por trecho do nome.
+    await expect(
+      run('kanban_set_members', { card: 'E08-IA-006', add: ['chisedek'] }, ctx),
+    ).rejects.toThrow(/Melchisedek Lima[\s\S]*Melchisedek Souza|ambig/i);
+    expect(fake.calls.every((c) => c.method === 'GET')).toBe(true);
+  });
+
+  it('pessoa ja atribuida nao vira chamada de rede', async () => {
+    const { ctx, fake } = setup(readOnlyServer);
+    const output = await run(
+      'kanban_set_members',
+      { card: 'E03-APP-005', add: ['melchisedek'], dry_run: false },
+      ctx,
+    );
+    expect(output).toContain('nada a fazer');
+    expect(fake.calls.every((c) => c.method === 'GET')).toBe(true);
+  });
+
+  it('vinculo orfao nao derruba a leitura: aparece pelo proprio id', async () => {
+    // CARD_MEMBERSHIPS tem userId '999', de quem saiu do board. O `format.ts` cai
+    // no id em vez de derrubar a chamada (invariante 3), e o estado atual mostra
+    // isso como esta — melhor um id visivel do que uma pessoa omitida em silencio.
+    const { ctx } = setup(readOnlyServer);
+    const output = await run('kanban_set_members', { card: 'E03-APP-005', add: ['agente'] }, ctx);
+    expect(output).toContain('estado atual');
+    expect(output).toContain('Melchisedek Lima');
+    expect(output).toContain('999');
+  });
+
+  it('aplica de verdade com dry_run: false e reconsulta o board', async () => {
+    const { ctx, fake } = setup(servidorComMembership);
+    const output = await run(
+      'kanban_set_members',
+      { card: 'E08-IA-006', add: ['melsouza'], dry_run: false },
+      ctx,
+    );
+    const post = fake.calls.find((c) => c.method === 'POST');
+    expect(pathOf(post!)).toBe(`/api/cards/${CARDS[0]!.id}/memberships`);
+    expect(post!.body).toEqual({ userId: USERS[2]!.id });
+    expect(output).toContain('+ Melchisedek Souza');
   });
 });
