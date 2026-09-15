@@ -16,7 +16,6 @@ import { addComment, listActions } from '../../src/api/comments.js';
 import { createTask, deleteTask, updateTask } from '../../src/api/tasks.js';
 import { addCardLabel, removeCardLabel } from '../../src/api/labels.js';
 import { addCardMember, removeCardMember } from '../../src/api/members.js';
-import { getMe } from '../../src/api/boards.js';
 import { RouteNotFoundError } from '../../src/errors.js';
 import { endPosition } from '../../src/position.js';
 
