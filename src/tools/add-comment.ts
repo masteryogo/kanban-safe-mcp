@@ -8,10 +8,11 @@ export const addCommentTool = defineTool({
   name: 'kanban_add_comment',
   title: 'Comentar num card',
   description:
-    'Publica um comentario. O board e compartilhado com outras pessoas e comentario ' +
-    'publicado nao se recolhe — mostre o texto com dry_run e confirme antes de enviar. ' +
-    'Nao ha edicao nem remocao de comentario neste servidor: e append-only. ' +
-    'A chamada nunca e repetida automaticamente, para nao duplicar publicacao.',
+    'Publica um comentario, em markdown. O board e compartilhado com outras pessoas e ' +
+    'comentario publicado nao se recolhe — mostre o texto com dry_run e confirme antes ' +
+    'de enviar. Para CORRIGIR um ja publicado use kanban_update_comment, em vez de ' +
+    'publicar uma segunda versao do mesmo recado. Remocao, essa sim, o servidor nao ' +
+    'expoe. A chamada nunca e repetida automaticamente, para nao duplicar publicacao.',
   write: true,
   schema: {
     card: cardField,
@@ -31,7 +32,9 @@ export const addCommentTool = defineTool({
           path,
           body: { text: args.text },
           current: { card: current.name },
-          note: 'comentario e append-only: depois de publicado nao da para editar nem apagar',
+          note:
+            'depois de publicado o comentario pode ser corrigido com kanban_update_comment, ' +
+            'mas NAO pode ser apagado — o servidor nao expoe remocao',
         },
       ]);
     }
